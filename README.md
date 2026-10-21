@@ -1,126 +1,147 @@
-# Movie Night API
+# Movie API Example — Fall 2026
 
-A small Spring Boot REST API for a movie night. It manages two things: **Movies** and **Snacks**. Use it as a reference for how the layers of a Spring Boot app fit together.
+A Spring Boot REST API for managing **movies and snacks**. The project uses Java, Spring Data JPA, and MySQL, and exposes JSON endpoints for creating, viewing, searching, updating, and deleting records.
 
-## How a request flows
+## Features
 
-```
-Client (Postman / browser)
-   │  HTTP request
-   ▼
-Controller   → receives the request, returns JSON
-   │
-   ▼
-Service      → business logic and validation
-   │
-   ▼
-Repository   → talks to the database
-   │
-   ▼
-MySQL
-```
+- Create, list, retrieve, search, and delete movies.
+- Search movies by genre or by part of the title.
+- Record whether a movie is available in **IMAX** and/or **3D**.
+- Create, list, retrieve, update, partially update, and delete snacks.
+- Persist entities in MySQL using Spring Data JPA.
+- Explore and test endpoints with the generated Swagger UI.
 
-Each layer only talks to the one directly below it. The controller never touches the repository, and the repository never knows about HTTP.
+## Tech stack
+
+- Java 25
+- Spring Boot 4.1.1
+- Spring Web MVC
+- Spring Data JPA / Hibernate
+- MySQL Connector/J
+- Maven
+- JUnit and Spring Boot Test
+- Springdoc OpenAPI / Swagger UI
 
 ## Project structure
 
+```text
+src/
+├── main/
+│   ├── java/com/movieapi/
+│   │   ├── MovieApp.java
+│   │   ├── movie/
+│   │   │   ├── Movie.java
+│   │   │   ├── MovieController.java
+│   │   │   ├── MovieRepository.java
+│   │   │   └── MovieService.java
+│   │   └── snack/
+│   │       ├── Snack.java
+│   │       ├── SnackController.java
+│   │       ├── SnackRepository.java
+│   │       └── SnackService.java
+│   └── resources/application.properties
+└── test/java/com/movieapi/
+    ├── movie/MovieServiceTest.java
+    └── snack/SnackServiceTest.java
 ```
-src/main/java/com/example/movienight
-├── MovieNightApplication.java      ← entry point (@SpringBootApplication)
-├── movie/
-│   ├── Movie.java                  ← Entity
-│   ├── MovieRepository.java        ← Repository
-│   ├── MovieService.java           ← Service
-│   └── MovieController.java        ← Controller
-└── snack/
-    ├── Snack.java
-    ├── SnackRepository.java
-    ├── SnackService.java
-    └── SnackController.java
 
-src/main/resources
-├── application.properties          ← DB connection + JPA settings
-└── data.sql                        ← sample movies and snacks
-```
+The application entry point is `com.movieapi.MovieApp`.
 
-All classes must live in `com.example.movienight` or a package below it. `@SpringBootApplication` only scans from its own package down, so a class outside it is never found.
-
-## The four layers
-
-| Layer | Annotation | Its job |
-| --- | --- | --- |
-| Entity | `@Entity` | A Java class that maps to a database table. Each field is a column. |
-| Repository | (interface extending `JpaRepository`) | Database access. Spring writes the implementation for you. |
-| Service | `@Service` | Business rules, e.g. a movie rating must be between 0 and 10. |
-| Controller | `@RestController` | Maps URLs and HTTP methods to Java methods. Returns objects as JSON. |
-
-A few things worth noticing in the code:
-
-- **Free CRUD.** `JpaRepository<Movie, Long>` gives you `save`, `findAll`, `findById`, `deleteById` and `count` with no code.
-- **Derived queries.** Spring builds SQL from a method name: `findByGenreIgnoreCase(String genre)` becomes `WHERE LOWER(genre) = LOWER(?)`.
-
-## Running it
+## Getting started
 
 ### Prerequisites
 
-- Java 25
-- Maven (or use the wrapper `./mvnw`)
-- MySQL running locally on port 3306
+- JDK 25
+- Maven
+- MySQL Server running locally (default connection: `localhost:3306`)
 
-### 1. Configure the database
+### 1. Create the database
 
-Open `src/main/resources/application.properties` and set your own MySQL username and password:
+Create a MySQL schema named `fall2026` before starting the application, for example in MySQL Workbench:
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/movienight?createDatabaseIfNotExist=true
-spring.datasource.username=root
-spring.datasource.password=yourpassword
+```sql
+CREATE DATABASE fall2026;
 ```
 
-### 2. Run the app
+The configured database username is `root`. If you use a different MySQL username, update `spring.datasource.username` in `src/main/resources/application.properties`.
 
-From your IDE, run `MovieNightApplication`, or from a terminal:
+### 2. Set the database password
+
+The password is deliberately not stored in the repository. The application reads it from the `DB_PASSWORD` environment variable.
+
+**Git Bash:**
 
 ```bash
-./mvnw spring-boot:run
+export DB_PASSWORD='your_mysql_password'
 ```
 
-The API is at `http://localhost:8080`.
+Replace the example value with your local MySQL password. Do not commit real passwords or paste them into public issues or documentation. Keep the variable set in the same terminal session where you run the app.
 
-## Endpoints
+### 3. Run the application
 
-### Movies: `/api/movies`
+From the project root:
 
-| Method | URL | Body | Result |
-| --- | --- | --- | --- |
-| GET | `/api/movies` | none | All movies |
-| GET | `/api/movies?genre=Comedy` | none | Movies in that genre |
-| GET | `/api/movies/{id}` | none | One movie, or 404 |
-| POST | `/api/movies` | Movie JSON | 201, the saved movie with its new id |
+```bash
+mvn spring-boot:run
+```
 
-Example body:
+The API runs at `http://localhost:8080`.
+
+Swagger UI is available at:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+## API endpoints
+
+All endpoints are relative to `http://localhost:8080`.
+
+### Movies
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/movies` | Save a movie |
+| `GET` | `/movies/getAllMovies` | Return all movies |
+| `GET` | `/movies/{movieId}` | Get one movie by ID |
+| `DELETE` | `/movies/{id}` | Delete a movie by ID |
+| `GET` | `/movies/searchByGenre/{genre}` | Find movies by genre |
+| `GET` | `/movies/searchByTitle?title={text}` | Search titles containing the supplied text (case-insensitive) |
+
+Example request body for `POST /movies`:
 
 ```json
 {
-  "title": "Barbie",
-  "genre": "Comedy",
-  "releaseYear": 2023,
-  "rating": 6.8
+  "title": "Avatar",
+  "genre": "Science Fiction",
+  "releaseDate": "2026-10-21",
+  "availableInIMAX": true,
+  "availableIn3D": true
 }
 ```
 
-### Snacks: `/api/snacks`
+The `availableInIMAX` and `availableIn3D` properties are independent booleans. For example, a movie can be available in IMAX without being available in 3D. If omitted, Java boolean fields default to `false`.
 
-| Method | URL | Body | Result |
-| --- | --- | --- | --- |
-| GET | `/api/snacks` | none | All snacks |
-| GET | `/api/snacks?maxPrice=5` | none | Snacks at or under that price |
-| GET | `/api/snacks/{id}` | none | One snack, or 404 |
-| POST | `/api/snacks` | Snack JSON | 201, the saved snack |
-| PUT | `/api/snacks/{id}` | Snack JSON | The updated snack |
-| DELETE | `/api/snacks/{id}` | none | 204, no content |
+The movie-create endpoint currently responds with the message `Movie saved successfully`. The `GET /movies/getAllMovies` endpoint returns the stored movie objects, including both availability fields.
 
-Example body:
+Example title search:
+
+```http
+GET /movies/searchByTitle?title=Avatar
+```
+
+### Snacks
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/snacks` | List all snacks; optionally filter with `?maxPrice=5` |
+| `GET` | `/snacks/{id}` | Get a snack by ID |
+| `POST` | `/snacks` | Create a snack |
+| `PUT` | `/snacks/{id}` | Replace/update a snack |
+| `PATCH` | `/snacks/{id}` | Partially update a snack |
+| `DELETE` | `/snacks/{id}` | Delete a snack |
+
+Example request body for `POST /snacks`:
 
 ```json
 {
@@ -131,27 +152,32 @@ Example body:
 }
 ```
 
-JSON keys match the **Java field names** (`releaseYear`), not the database column names (`release_year`).
+## Run tests
+
+From the project root:
+
+```bash
+mvn test
+```
+
+The tests cover the movie availability properties and snack service behavior. Run the command locally to see the current test results.
+
+## Configuration notes
+
+The database connection is configured in `src/main/resources/application.properties`. It currently points to the local MySQL schema `fall2026`, uses the `root` username, and reads the password from `DB_PASSWORD`. Hibernate is configured with `spring.jpa.hibernate.ddl-auto=update`, so it updates the schema based on entity changes when the application starts.
+
+For deployment or shared environments, use environment-specific configuration and a least-privilege database user rather than a root account. Never commit credentials.
 
 ## Troubleshooting
 
-| Problem | Likely cause |
+| Problem | Things to check |
 | --- | --- |
-| `Access denied for user` | Wrong username or password in `application.properties`. |
-| `Communications link failure` | MySQL isn't running, or it's on a different port. |
-| `Unknown database` | Check the URL for a typo, or keep `?createDatabaseIfNotExist=true`. |
-| 404 on every endpoint | A class is outside the `com.example.movienight` package. |
-| Response is `{}` | The entity is missing getters. Jackson reads fields through getters. |
-| `No default constructor for entity` | Add an empty constructor to the entity. |
-| `data.sql` didn't load | Check `spring.sql.init.mode=always` and `spring.jpa.defer-datasource-initialization=true`. |
-| Port 8080 already in use | Stop the other running app, or set `server.port=8081`. |
+| MySQL access denied | Confirm `DB_PASSWORD` and the configured username. |
+| Connection refused / communications link failure | Confirm MySQL is running and listening on port `3306`. |
+| Unknown database `fall2026` | Create the schema or correct the datasource URL. |
+| Port `8080` already in use | Stop the other process or configure a different server port. |
+| Swagger UI does not load | Confirm the application started successfully, then open `/swagger-ui/index.html`. |
 
-## Try it yourself
+## Repository
 
-Once it runs, extend it. Each of these touches more than one layer.
-
-1. `GET /api/movies?minRating=8` returns only movies rated 8 or higher.
-2. Creating a snack with a blank name returns `400 Bad Request`.
-3. A movie has a `runtimeMinutes` field that shows up in the JSON and the database.
-4. `GET /api/snacks/sweet` returns only sweet snacks.
-5. A third entity of your choice (a `Friend` who's coming to movie night?) with full CRUD.
+[View this project on GitHub](https://github.com/feraszen/Movie_Api_Example_Fall_2026)
